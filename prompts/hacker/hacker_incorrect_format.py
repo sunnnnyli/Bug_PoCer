@@ -1,0 +1,1 @@
+hacker_incorrect_format_prompt = "Please try again, your exploit does not follow the correct format. Output only raw JSON in plain text without code formatting. Please also ensure that any backslashes and quotes are correctly escaped."
