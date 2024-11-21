@@ -3,6 +3,7 @@ import logging
 from agents.hacker_agent import HackerAgent
 from forge_lib import ForgeLib
 
+
 class HackerService:
     def __init__(self, project_root_path, ethernaut_challenge, hacker_temp):
         self.project_root_path = project_root_path
@@ -24,10 +25,12 @@ class HackerService:
 
         # Initialize the hacker agent
         self.hacker_agent = HackerAgent(
+            self.ethernaut_challenge,
             self.victim_sol_content, 
             self.exploit_contract_skeleton,
             self.test_case_skeleton
         )
+
 
     def load_file(self, folder, file_name):
         """Helper to read file content from the exploits folder."""
@@ -35,43 +38,46 @@ class HackerService:
         with open(filepath, "r") as file:
             return file.read()
         
+
     """Run attempt to exploit the challenge and continue reattempting until the exploit is successful."""
-    def execute(self, attempts=3):
+    def execute(self, attempts=5):
         curr_attempts = 0
         while curr_attempts < attempts:
-            logging.info(f"Attempt {curr_attempts} for challenge {self.ethernaut_challenge}")
+            print(f"Attempt {curr_attempts}:")
+            print("=" * 10)
+            logging.info(f"Starting attempt {curr_attempts} for challenge {self.ethernaut_challenge}")
             
             if curr_attempts == 0:
-                hacker_output, prompt = self.hacker_agent.attempt()
+                hacker_output = self.hacker_agent.attempt()
             else:
                 # On subsequent attempts, use the previous forge output for a new attempt
-                hacker_output, prompt = self.hacker_agent.attempt(forge_output.output_str)
-            
-            # Log the formatted prompt fed into the AI model
-            logging.info(f"Prompt Fed to AI Model:\n{prompt}")
+                hacker_output = self.hacker_agent.attempt(forge_output.output_str)
+
+            logging.info(f"AI generated exploit code{' (reattempt)' if curr_attempts > 0 else ''}:\n{hacker_output.solidity_attempt}")
 
             self.hacker_agent.write_exploit(hacker_output.solidity_attempt, self.exploit_contract_path)
-            logging.info(f"Generated Exploit Code{' (Reattempt)' if curr_attempts > 0 else ''}:\n{hacker_output.solidity_attempt}")
 
             # Run forge test and capture output
             forge_output = ForgeLib.run_forge_test(self.ethernaut_challenge, self.project_root_path)
 
-            print(f"Attempt {curr_attempts}:")
-            print("=" * 70)
-
             # Check if the test succeeded
             if forge_output.return_code == 0:
                 logging.info(f"Successful exploit for challenge {self.ethernaut_challenge} on attempt {curr_attempts}")
-                logging.info(f"Forge Output: {forge_output.output_str}")
-                print(f"Output:\n{forge_output.output_str}\nSuccessfully exploited the challenge!")
-                print("=" * 70)
+                logging.info(f"Forge Output:\n{forge_output.output_str}")
+                print("Successfully exploited the challenge!")
+                print("=" * 70, "\n")
+                curr_attempts += 1
                 break
             else:
                 logging.warning(f"Attempt {curr_attempts} failed for challenge {self.ethernaut_challenge}")
-                logging.warning(f"Forge Output: {forge_output.output_str}")
-                print(f"Output:\n{forge_output.output_str}\nForge test failed.")
+                logging.warning(f"Forge Output:\n{forge_output.output_str}")
+                print("Forge test failed. More information can be found in logs.")
                 print("=" * 70, "\n")
+                curr_attempts += 1
+            
+        if forge_output.return_code == 0:
+            exploit_status = "***SUCCESS***"
+        else:
+            exploit_status = "***FAILURE***"
 
-            curr_attempts += 1
-
-        logging.info(f"Total attempts: {curr_attempts}")
+        logging.info(f"Exploit status: {exploit_status} after {curr_attempts} attempts")

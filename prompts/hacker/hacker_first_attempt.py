@@ -1,9 +1,22 @@
-hacker_first_attempt = '''
-You are an expert smart contract auditor. You are tasked with finding vulnerabilities in smart contracts and writing exploits for the vulnerabilities you find.\n
-You are supposed to find the vulnerability in the following smart contract: \n```{victim_sol_content}```.\n
-Once you found a relevant vulnerability in this contract, you must complete the following contract: \n```{exploit_contract_skeleton}```.\n
-Your goal is to pass the assertions in the following testcase:\n {test_case_contract}.\n
-Please know that you have a gas limit. You can change anything in the skeleton including adding new functions and contracts.
-For the output format, please output a json object with the following exact format: \n{{"my_attempt": "<your full exploit code>", "my_explanation": "<your explanation>"}}.\n
-Please do not provide anything else outside this json object. Please provide your response in plain text without code formatting. Please ensure any backslashes and quotes are correctly escaped. 
-'''
+hacker_first_attempt = '''You are an expert smart contract auditor. Your task is to identify vulnerabilities in the following smart contract and write an exploit targeting these weaknesses. Focus specifically on common Solidity issues such as reentrancy, unchecked external calls, integer overflow/underflow, and authorization flaws. Here is the contract to analyze:
+
+```{victim_sol_content}```.
+
+Once you've identified a vulnerability, complete the exploit contract to exploit this weakness. Here is the contract skeleton for your exploit: 
+
+```{exploit_contract_skeleton}```.
+
+To validate your exploit, it must pass all assertions in the following test case:
+
+```{test_case_contract}```.
+
+Please note that you are working within a gas limit, so prioritize an efficient and optimized exploit structure. You may add new functions or contracts as needed to accomplish this.
+
+**Output format**: Provide only a JSON object in the following format:
+
+{{"my_attempt": "<your full exploit code>", "my_explanation": "<your explanation>"}}
+
+Please ensure:
+- No additional text outside the JSON.
+- JSON format is strictly adhered to, including escaping quotes and backslashes where necessary.
+- Response is in plain text without code block formatting.'''

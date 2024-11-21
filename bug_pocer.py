@@ -4,6 +4,7 @@ from datetime import datetime
 from argparse import ArgumentParser
 from services.hacker_service import HackerService
 
+
 def setup_logging(challenge_name):
     # Create 'logs' directory if it doesn't exist
     logs_dir = 'logs'
@@ -11,18 +12,19 @@ def setup_logging(challenge_name):
         os.makedirs(logs_dir)
 
     # Define log filename with challenge name and timestamp
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    log_filename = f"{challenge_name}_{timestamp}.log"
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    log_filename = f"{timestamp}_{challenge_name}.log"
     log_path = os.path.join(logs_dir, log_filename)
 
     # Configure logging
     logging.basicConfig(
         filename=log_path,
         level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s'
+        format='%(asctime)s | %(levelname)s | %(message)s'
     )
-    logging.info("Logging setup complete.")
+    logging.info("Logging setup complete...")
     return log_path
+
 
 def main(args):
     log_path = setup_logging(args.chal)
@@ -30,6 +32,7 @@ def main(args):
 
     # proj_path = "/mnt/c/Users/sunny/Downloads/Sunny/Olympix/sunny_pocer"
     forge_bug_pocs_dir = "/mnt/c/Users/sunny/Downloads/Sunny/Olympix/sunny_pocer/forge_bug_pocs"
+    logging.info(f"Forge directory being used for tests: {forge_bug_pocs_dir}")
 
     # Initialize HackerService (manages exploit attempts)
     hacker_service = HackerService(
@@ -37,11 +40,14 @@ def main(args):
         args.chal,
         args.hacker_temp,
     )
+    logging.info(f"Setup for hacker_service was successful.")
 
     # Execute attempt with retries
+    logging.info(f"Executing hacker_service...")
     hacker_service.execute()
     
-    logging.info(f"Logging stored in {log_path}")
+    print(f"Log file stored in: {log_path}")
+
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Bug pocer script to exploit Ethernaut challenges using the o1-mini model.")

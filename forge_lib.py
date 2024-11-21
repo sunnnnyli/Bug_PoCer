@@ -1,6 +1,7 @@
-import os
+import logging
 from models.ForgeOutput import ForgeOutput
 import subprocess
+
 
 class ForgeLib:
     @staticmethod
@@ -13,5 +14,8 @@ class ForgeLib:
             capture_output=True, 
             check=False
         )
+
+        logging.info(f"`run_forge_test()` executing command: forge test -vvv --match-contract Test{ethernaut_chal}Exploit")
+
         # Return the output and return code, trimming the output to 3000 characters
         return ForgeOutput((p.stdout + p.stderr)[:3000], p.returncode)
