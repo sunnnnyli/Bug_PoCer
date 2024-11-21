@@ -18,4 +18,11 @@ class ForgeLib:
         logging.info(f"`run_forge_test()` executing command: forge test -vvv --match-contract Test{ethernaut_chal}Exploit")
 
         # Return the output and return code, trimming the output to 3000 characters
-        return ForgeOutput((p.stdout + p.stderr)[:3000], p.returncode)
+        result = ForgeOutput((p.stdout + p.stderr)[:3000], p.returncode)
+
+        if "No tests to run" in result.output_str:
+            logging.error("Forge could not find forge tests to run")
+            raise Exception("'forge_lib: run_forge_test()': Forge could not find tests to run.")
+        
+        return result
+    
