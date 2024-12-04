@@ -22,7 +22,7 @@ class ForgeLib:
 
         if "No tests to run" in result.output_str:
             logging.error("Forge could not find forge tests to run")
-            raise Exception("'forge_lib: run_forge_test()': Forge could not find tests to run.")
+            raise Exception("'forge_lib.py: run_forge_test()': Forge could not find tests to run.")
         
         return result
     

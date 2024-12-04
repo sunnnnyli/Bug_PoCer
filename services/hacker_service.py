@@ -1,5 +1,6 @@
 import os
 import logging
+from datetime import datetime
 from agents.hacker_agent import HackerAgent
 from forge_lib import ForgeLib
 
@@ -47,18 +48,31 @@ class HackerService:
             print("=" * 10)
             logging.info(f"Starting attempt {curr_attempts} for challenge {self.ethernaut_challenge}")
             
+            print("AI generating exploit code...")
+            start_time = datetime.now()
             if curr_attempts == 0:
                 hacker_output = self.hacker_agent.attempt()
             else:
                 # On subsequent attempts, use the previous forge output for a new attempt
                 hacker_output = self.hacker_agent.attempt(forge_output.output_str)
+            difference = (datetime.now() - start_time).total_seconds()
+
+            print(f"Done... (took {difference} seconds)")
+            
 
             logging.info(f"AI generated exploit code{' (reattempt)' if curr_attempts > 0 else ''}:\n{hacker_output.solidity_attempt}")
 
+            print("Writing to exploit file...")
             self.hacker_agent.write_exploit(hacker_output.solidity_attempt, self.exploit_contract_path)
+            with open(self.exploit_contract_path, "r") as file:
+                logging.info(f"Content of file `{self.exploit_contract_path}`:\n{file.read()}")
+            print("Done...")
 
             # Run forge test and capture output
+            print("Testing exploit code...")
             forge_output = ForgeLib.run_forge_test(self.ethernaut_challenge, self.project_root_path)
+            print("Done...")
+            print(f"Forge Output:\n{forge_output.output_str}\n")
 
             # Check if the test succeeded
             if forge_output.return_code == 0:
@@ -75,9 +89,6 @@ class HackerService:
                 print("=" * 70, "\n")
                 curr_attempts += 1
             
-        if forge_output.return_code == 0:
-            exploit_status = "***SUCCESS***"
-        else:
-            exploit_status = "***FAILURE***"
-
-        logging.info(f"Exploit status: {exploit_status} after {curr_attempts} attempts")
+        status = "***SUCCESS***" if forge_output.return_code == 0 else "***FAILURE***"
+        logging.info(f"Exploit status: {status} after {curr_attempts} attempt{'s' if curr_attempts > 1 else ''}")
+        return forge_output.return_code == 0

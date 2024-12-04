@@ -77,7 +77,7 @@ class HackerAgent:
             curr_attempt += 1
             if curr_attempt == attempts:
                 logging.error("AI failed to generate output in correct format")
-                raise Exception("'hacker_agent: format_output()': Failed to generate output in correct format.")
+                raise Exception("'hacker_agent.py: format_output()': Failed to generate output in correct format.")
         return result
     
 

@@ -5,7 +5,7 @@ import "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import "openzeppelin-contracts/token/ERC20/ERC20.sol";
 import 'openzeppelin-contracts/access/Ownable.sol';
 
-contract DEX is Ownable {
+contract Dex is Ownable {
   address public token1;
   address public token2;
   constructor() {}
