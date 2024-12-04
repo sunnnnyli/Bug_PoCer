@@ -49,8 +49,7 @@ def main(args):
     log_path = setup_logging(args.chal)
     logging.info(f"Starting bug_pocer for challenge: {args.chal}")
 
-    # proj_path = "/mnt/c/Users/sunny/Downloads/Sunny/Olympix/sunny_pocer"
-    forge_bug_pocs_dir = "/mnt/c/Users/sunny/Downloads/Sunny/Olympix/sunny_pocer/forge_bug_pocs"
+    forge_bug_pocs_dir = "/mnt/c/Users/sunny/Downloads/Sunny/Olympix/bug_pocer/forge_bug_pocs"
     logging.info(f"Forge directory being used for tests: {forge_bug_pocs_dir}")
 
     # Initialize HackerService (manages exploit attempts)

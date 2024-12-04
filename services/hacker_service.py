@@ -48,7 +48,7 @@ class HackerService:
             print("=" * 10)
             logging.info(f"Starting attempt {curr_attempts} for challenge {self.ethernaut_challenge}")
             
-            print("AI generating exploit code...")
+            print("Generating exploit code...")
             start_time = datetime.now()
             if curr_attempts == 0:
                 hacker_output = self.hacker_agent.attempt()
