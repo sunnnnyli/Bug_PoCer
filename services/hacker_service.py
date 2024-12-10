@@ -1,5 +1,6 @@
 import os
 import logging
+import difflib
 from datetime import datetime
 from agents.hacker_agent import HackerAgent
 from forge_lib import ForgeLib
@@ -38,10 +39,36 @@ class HackerService:
         filepath = os.path.join(folder, file_name)
         with open(filepath, "r") as file:
             return file.read()
+
+
+    def log_file_differences(self, old_file_path, new_content):
+        try:
+            with open(old_file_path, 'r') as old_file:
+                old_content = old_file.readlines()
+
+            # Compute differences
+            diff = difflib.unified_diff(
+                old_content,
+                new_content.splitlines(),
+                fromfile='Previous Exploit File',
+                tofile='Current Exploit File',
+                lineterm=''
+            )
+
+            difference = ''.join(diff)
+
+            # Log the differences
+            logging.info("Differences between previous and current exploit file:\n%s", difference)
+
+            return difference
+        except FileNotFoundError as e:
+            logging.warning(f"File not found for comparison: {e}")
+        except Exception as e:
+            logging.error(f"Error while logging file differences: {e}")
         
 
     """Run attempt to exploit the challenge and continue reattempting until the exploit is successful."""
-    def execute(self, attempts=5):
+    def execute(self, attempts):
         curr_attempts = 0
         while curr_attempts < attempts:
             print(f"Attempt {curr_attempts}:")
@@ -59,8 +86,10 @@ class HackerService:
 
             print(f"Done... (took {difference} seconds)")
             
-
             logging.info(f"AI generated exploit code{' (reattempt)' if curr_attempts > 0 else ''}:\n{hacker_output.solidity_attempt}")
+            
+            if curr_attempts > 0:
+                self.log_file_differences(self.exploit_contract_path, hacker_output.solidity_attempt)
 
             print("Writing to exploit file...")
             self.hacker_agent.write_exploit(hacker_output.solidity_attempt, self.exploit_contract_path)

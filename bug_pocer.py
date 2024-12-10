@@ -62,7 +62,7 @@ def main(args):
 
     # Execute attempt with retries
     logging.info(f"Executing hacker_service...")
-    exploit_status = hacker_service.execute()
+    exploit_status = hacker_service.execute(args.num_attempts)
 
     # Move the log file based on the exploit status
     move_log_file(log_path, exploit_status)
@@ -72,6 +72,7 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="Bug pocer script to exploit Ethernaut challenges using the o1-mini model.")
     parser.add_argument("--chal", help="The name of the Ethernaut challenge to exploit.", required=True)
     parser.add_argument("--hacker_temp", type=float, help="Temperature for the o1-mini model.", default=1)
+    parser.add_argument("--num_attempts", type=int, help="Number of attempts before quitting", default=5)
     
     args = parser.parse_args()
     main(args)
