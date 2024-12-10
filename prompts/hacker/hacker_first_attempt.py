@@ -10,7 +10,7 @@ To validate your exploit, it must pass all assertions in the following test case
 
 ```{test_case_contract}```.
 
-Please note that you are working within a gas limit, so prioritize an efficient and optimized exploit structure. You may add new functions or contracts as needed to accomplish this, but do not change my import statements.
+Please note that you are working within a gas limit, so prioritize an efficient and optimized exploit structure. You may add new functions or contracts as needed to accomplish this, but absolutely do not change or remove my import statements and compiler version.
 
 **Output format**: Provide only a JSON object in the following format:
 

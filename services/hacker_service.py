@@ -44,7 +44,7 @@ class HackerService:
     def log_file_differences(self, old_file_path, new_content):
         try:
             with open(old_file_path, 'r') as old_file:
-                old_content = old_file.readlines()
+                old_content = old_file.read().splitlines() 
 
             # Compute differences
             diff = difflib.unified_diff(
@@ -55,7 +55,7 @@ class HackerService:
                 lineterm=''
             )
 
-            difference = ''.join(diff)
+            difference = '\n'.join(diff)
 
             # Log the differences
             logging.info("Differences between previous and current exploit file:\n%s", difference)

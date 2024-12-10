@@ -156,3 +156,6 @@ cython_debug/
 
 # VSCode
 .vscode/
+
+# Forge Out directory
+forge_bug_pocs/out/

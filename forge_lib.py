@@ -8,14 +8,14 @@ class ForgeLib:
     def run_forge_test(ethernaut_chal, proj_root_path) -> ForgeOutput:
         # Run `forge test` with specific challenge and capture the output
         p = subprocess.run(
-            ["forge", "test", "--quiet", "-vvv", "--match-contract", f"Test{ethernaut_chal}Exploit"],
+            ["forge", "test", "-vvv", "--match-contract", f"Test{ethernaut_chal}Exploit"],
             cwd=proj_root_path, 
             text=True, 
             capture_output=True, 
             check=False
         )
 
-        logging.info(f"`run_forge_test()` executing command: forge test --quiet -vvv --match-contract Test{ethernaut_chal}Exploit")
+        logging.info(f"`run_forge_test()` executing command: forge test -vvv --match-contract Test{ethernaut_chal}Exploit")
 
         # Return the output and return code, trimming the output to 3000 characters
         result = ForgeOutput((p.stdout + p.stderr)[:3000], p.returncode)
