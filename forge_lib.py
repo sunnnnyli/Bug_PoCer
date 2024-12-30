@@ -1,27 +1,29 @@
 import logging
+import os
 from models.ForgeOutput import ForgeOutput
 import subprocess
 
 
 class ForgeLib:
     @staticmethod
-    def run_forge_test(ethernaut_chal, proj_root_path) -> ForgeOutput:
-        # Run `forge test` with specific challenge and capture the output
+    def run_forge_test(proj_root_path, filename: str) -> ForgeOutput:
+        # Run `forge test` with specific filename and capture the output
+        file_base_name = os.path.splitext(filename)[0]
         p = subprocess.run(
-            ["forge", "test", "-vvv", "--match-contract", f"Test{ethernaut_chal}Exploit"],
+            ["forge", "test", "-vvv", "--match-contract", file_base_name],
             cwd=proj_root_path, 
             text=True, 
             capture_output=True, 
             check=False
         )
 
-        logging.info(f"`run_forge_test()` executing command: forge test -vvv --match-contract Test{ethernaut_chal}Exploit")
+        logging.info(f"`run_forge_test()` executing command: forge test -vvv --match-contract {file_base_name}")
 
         # Return the output and return code, trimming the output to 3000 characters
         result = ForgeOutput((p.stdout + p.stderr)[:3000], p.returncode)
 
         if "No tests to run" in result.output_str:
-            logging.error("Forge could not find forge tests to run")
+            logging.error("Forge could not find tests to run!")
             raise Exception("'forge_lib.py: run_forge_test()': Forge could not find tests to run.")
         
         return result

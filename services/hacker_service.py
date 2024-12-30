@@ -3,42 +3,33 @@ import logging
 import difflib
 from datetime import datetime
 from agents.hacker_agent import HackerAgent
+from agents.tester_agent import TesterAgent
 from forge_lib import ForgeLib
+from file_lib import write_file, read_file
 
 
 class HackerService:
-    def __init__(self, project_root_path, ethernaut_challenge, hacker_temp):
+    def __init__(self, project_root_path, olympix_path, temp=1):
         self.project_root_path = project_root_path
-        self.ethernaut_challenge = ethernaut_challenge
-        self.hacker_temp = hacker_temp
+        self.olympix_path = olympix_path
+        self.temp = temp
         self.attempt_count = 0
 
-        self.contract_folder = os.path.join(self.project_root_path, "exploits", ethernaut_challenge)
+        self.exploit_folder = os.path.join(self.project_root_path, "exploits")
         self.test_folder = os.path.join(self.project_root_path, "test")
-        self.source_folder = os.path.join(self.project_root_path, "src", ethernaut_challenge)
+        self.source_folder = os.path.join(self.project_root_path, "src")
 
         # Load exploit resources
         self.exploit_contract_path = os.path.join(self.contract_folder, f"{ethernaut_challenge}ExploitAttempt.sol")
-        self.exploit_contract_skeleton = self.load_file(self.contract_folder, f"{ethernaut_challenge}ExploitSkeleton.sol")
+        self.exploit_contract_skeleton = read_file(self.contract_folder, f"{ethernaut_challenge}ExploitSkeleton.sol")
 
         # Load source contract and tests
-        self.test_case_skeleton = self.load_file(self.test_folder, f"Test{ethernaut_challenge}Exploit.sol")
-        self.victim_sol_content = self.load_file(self.source_folder, f"{ethernaut_challenge}.sol")
+        self.test_case_skeleton = read_file(self.test_folder, f"Test{ethernaut_challenge}Exploit.sol")
+        self.victim_sol_content = read_file(self.source_folder, f"{ethernaut_challenge}.sol")
 
-        # Initialize the hacker agent
-        self.hacker_agent = HackerAgent(
-            self.ethernaut_challenge,
-            self.victim_sol_content, 
-            self.exploit_contract_skeleton,
-            self.test_case_skeleton
-        )
-
-
-    def load_file(self, folder, file_name):
-        """Helper to read file content from the exploits folder."""
-        filepath = os.path.join(folder, file_name)
-        with open(filepath, "r") as file:
-            return file.read()
+        # Initialize agents
+        self.hacker_agent = HackerAgent('o1', self.project_root_path)
+        self.tester_agent = TesterAgent('o1', self.project_root_path, olympix_path)
 
 
     def log_file_differences(self, old_file_path, new_content):
@@ -68,8 +59,10 @@ class HackerService:
         
 
     """Run attempt to exploit the challenge and continue reattempting until the exploit is successful."""
-    def execute(self, attempts):
+    def execute(self, attempts) -> bool:
         curr_attempts = 0
+        forge_output = None
+
         while curr_attempts < attempts:
             print(f"Attempt {curr_attempts}:")
             print("=" * 10)
@@ -77,13 +70,14 @@ class HackerService:
             
             print("Generating exploit code...")
             start_time = datetime.now()
+
             if curr_attempts == 0:
                 hacker_output = self.hacker_agent.attempt()
             else:
                 # On subsequent attempts, use the previous forge output for a new attempt
                 hacker_output = self.hacker_agent.attempt(forge_output.output_str)
-            difference = (datetime.now() - start_time).total_seconds()
 
+            difference = (datetime.now() - start_time).total_seconds()
             print(f"Done... (took {difference} seconds)")
             
             logging.info(f"AI generated exploit code{' (reattempt)' if curr_attempts > 0 else ''}:\n{hacker_output.solidity_attempt}")

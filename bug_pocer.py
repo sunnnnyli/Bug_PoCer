@@ -2,10 +2,11 @@ import logging
 import os
 from datetime import datetime
 from argparse import ArgumentParser
+from services.tester_service import TesterService
 from services.hacker_service import HackerService
 
 
-def setup_logging(challenge_name):
+def setup_logging(filename):
     # Create 'logs' directory if it doesn't exist
     logs_dir = 'logs'
     if not os.path.exists(logs_dir):
@@ -13,14 +14,14 @@ def setup_logging(challenge_name):
 
     # Define log filename with challenge name and timestamp
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    log_filename = f"{timestamp}_{challenge_name}.log"
+    log_filename = f"{timestamp}_{filename}.log"
     log_path = os.path.join(logs_dir, log_filename)
 
     # Configure logging
     logging.basicConfig(
         filename=log_path,
         level=logging.INFO,
-        format='%(asctime)s | %(levelname)s | %(message)s'
+        format='%(message)s'
     )
     logging.info("Logging setup complete...")
     logging.info(f"Initial log file path: {log_path}")
@@ -46,16 +47,30 @@ def move_log_file(log_path, exploit_status):
 
 
 def main(args):
-    log_path = setup_logging(args.chal)
-    logging.info(f"Starting bug_pocer for challenge: {args.chal}")
+    log_path = setup_logging(args.filename)
+    if args.filename is not None:
+        logging.info(f"Starting bug_pocer for file `{args.filename}`")
+    else:
+        logging.info(f"No specific file given, starting bug_pocer for all files.")
 
-    forge_bug_pocs_dir = "/mnt/c/Users/sunny/Downloads/Sunny/Olympix/sunny_bug_pocer/forge_bug_pocs"
+    forge_bug_pocs_dir = "/mnt/c/Users/sunny/Downloads/Sunny/Olympix/Trial/bug-pocer/forge_bug_pocs"
     logging.info(f"Forge directory being used for tests: {forge_bug_pocs_dir}")
 
-    # Initialize HackerService (manages exploit attempts)
+    olympix_path = '/mnt/c/Users/sunny/Downloads'
+    logging.info(f"Provided path to olympix.exe: {olympix_path}")
+
+    # Initialize TesterService and pass the paths
+    tester_service = TesterService(
+        forge_bug_pocs_dir,
+        olympix_path,
+        args.hacker_temp,
+    )
+    logging.info(f"Setup for hacker_service was successful.")
+
+    # Initialize HackerService (manages exploit attempts) and pass the analysis
     hacker_service = HackerService(
         forge_bug_pocs_dir,
-        args.chal,
+        olympix_path,
         args.hacker_temp,
     )
     logging.info(f"Setup for hacker_service was successful.")
@@ -69,10 +84,33 @@ def main(args):
     
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description="Bug pocer script to exploit Ethernaut challenges using the o1-mini model.")
-    parser.add_argument("--chal", help="The name of the Ethernaut challenge to exploit.", required=True)
-    parser.add_argument("--hacker_temp", type=float, help="Temperature for the o1-mini model.", default=1)
-    parser.add_argument("--num_attempts", type=int, help="Number of attempts before quitting", default=5)
-    
+    parser = ArgumentParser(
+        description="Bug pocer script to exploit solidity code using the gpt o1 model and olympix static analysis."
+    )
+
+    # Temperature argument: optional with default of 1
+    parser.add_argument(
+        "-t", "--hacker_temp",
+        type=float,
+        default=1,
+        help="Temperature for the o1 model (optional, defaults to 1)."
+    )
+
+    # Filename argument: optional with a default of None
+    parser.add_argument(
+        "-f", "--filename",
+        type=str,
+        default=None,
+        help="Name of the Solidity file to exploit (optional, defaults to None)."
+    )
+
+    # Number of attempts: optional with default of 7
+    parser.add_argument(
+        "-n", "--num_attempts",
+        type=int,
+        default=7,
+        help="Number of attempts before quitting (optional, defaults to 7)."
+    )
+
     args = parser.parse_args()
     main(args)
