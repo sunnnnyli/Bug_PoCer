@@ -34,7 +34,7 @@ class TesterAgent:
         self.forge_path = forge_path
         self.src_path = os.path.join(forge_path, "src")
         self.test_path = os.path.join(forge_path, "test")
-        self.test_output = ''
+        self.test_output = None
         self.id = str(datetime.now().strftime('%Y-%m-%d_%H-%M-%S_'))
 
         self.ai_model = ChatOpenAI(
@@ -71,24 +71,18 @@ class TesterAgent:
         """
         test_filename = f"{os.path.splitext(filename)[0]}Test.sol"
         logging.info(f"Testing exploit code for {test_filename}...")
-        print(f"Testing exploit code for {test_filename}...")
 
         try:
-            forge_output = ForgeLib.run_forge_test(self.forge_path, test_filename)
+            forge_output = ForgeLib.run_forge_test(self.forge_path, filename)
             self.test_output = forge_output.output_str
         except Exception as e:
             logging.error(f"Failed to run Forge test: {e}")
-            print(f"Failed to run Forge test: {e}")
             return None  # Indicates an internal error with the tester
 
-        print("Done...")
-
         logging.info(f"Forge Output:\n{forge_output.output_str}")
-        print(f"Forge Output:\n{forge_output.output_str}\n")
 
         if forge_output.return_code == 0:
             logging.info("Successfully exploited the code!")
-            print("Successfully exploited the code!")
             return TestOutput(
                 status="success",
                 feedback="The exploit was successfully executed.",
@@ -99,7 +93,6 @@ class TesterAgent:
             logging.info("Analyzing the forge output...")
             test_result = self._analyze_forge_output(forge_output.output_str)
             logging.info(f"Analysis output: {test_result}")
-            print(f"Analysis output: {test_result}")
             return test_result
 
     def _analyze_forge_output(self, output_str: str) -> TestOutput:
