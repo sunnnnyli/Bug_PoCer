@@ -11,7 +11,7 @@ from prompts.hacker.skeleton_first_attempt import skeleton_first_attempt
 from prompts.hacker.reattempt import reattempt
 from prompts.hacker.skeleton_reattempt import skeleton_reattempt
 from prompts.hacker.chained_call import chained_call
-from file_lib import write_file, read_file
+from lib.file_lib import write_file, read_file
 
 
 class HackOutput(TypedDict):
@@ -20,22 +20,7 @@ class HackOutput(TypedDict):
 
 
 class HackerAgent:
-    """
-    The HackerAgent is responsible for:
-      1. Generating exploits for vulnerabilities found in the code.
-      2. Writing the generated exploit code to disk in the 'exploit' folder.
-      3. Storing and retrieving generated exploit code in/from memory.
-    """
-
     def __init__(self, gpt_model, forge_path, temp, exploit_skeleton_path):
-        """
-        Initialize the HackerAgent.
-
-        :param gpt_model: Name of the GPT model to use for generating exploits.
-        :param forge_path: Filesystem path to the Forge project. Must contain an 'exploit' folder.
-        :param temp: Temperature for the GPT model calls (creativity).
-        :param exploit_skeleton: Optional base skeleton for exploit generation.
-        """
         self.forge_path = forge_path
         self.src_path = os.path.join(forge_path, "src")
         self.exploit_skeleton = read_file(exploit_skeleton_path)
@@ -72,25 +57,6 @@ class HackerAgent:
                 test_code,
                 forge_output=None,
                 exploit_analysis_data: dict = None) -> dict:
-        """
-        Attempts to generate an exploit for the specified Solidity file:
-         - On the first attempt (forge_output=None), it prompts with the file's source code 
-           plus static analysis data and the relevant test code.
-         - On subsequent re-attempts (when forge_output is provided), it prompts with the 
-           forge test output in addition to the static analysis data.
-
-        This method writes the generated exploit code to a `.sol` file in the 'exploit' folder 
-        (appending 'Exploit' before the extension) and returns a dictionary of 
-        { exploit_filename: exploit_code }.
-
-        :param static_analysis: JSON or textual data from a prior static analysis tool.
-        :param filename: The name of the Solidity file that is being exploited.
-        :param test_code: The generated test code associated with this Solidity file.
-        :param forge_output: (Optional) The output string from running a previous test attempt; 
-                             if None, we assume this is the first attempt.
-        :return: Dictionary mapping { exploit_filename: exploit_code }.
-        :raises Exception: If AI model output cannot be parsed properly or if writing the file fails.
-        """
         src_file_path = os.path.join(self.src_path, filename)
 
         # Determine the template and formatting arguments based on conditions
@@ -139,7 +105,7 @@ class HackerAgent:
             exploit_code = output_dict['my_exploit']
             # explanation = output_dict['my_explanation']
         except Exception as e:
-            logging.error(f"HackerAgent: Could not parse exploit code from model output. Error: {e}")
+            logging.error(f"Could not parse exploit code from model output. Error: {e}")
             raise
 
         # Construct the exploit filename (e.g., FooExploit.sol if 'Foo.sol' was the original)
@@ -157,18 +123,6 @@ class HackerAgent:
         return {exploit_filename: exploit_code}
 
     def get_exploit_code(self, filename: str) -> str:
-        """
-        Retrieves the exploit code for a given Solidity filename from memory or disk.
-        
-        1. Derives the exploit filename (e.g. FooExploit.sol) from the provided filename.
-        2. Checks if the code is in the in-memory dictionary first.
-        3. If not found, tries reading from disk in the 'exploit' folder.
-        4. Raises FileNotFoundError if not found in memory or on disk.
-
-        :param filename: Name of the original Solidity file (e.g. 'Foo.sol').
-        :return: The exploit code as a string.
-        :raises FileNotFoundError: If the exploit file cannot be found in memory or on disk.
-        """
         exploit_filename = f"{os.path.splitext(filename)[0]}Exploit.sol"
 
         # Check in-memory dictionary first

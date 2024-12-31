@@ -13,14 +13,6 @@ class BuilderService:
         temp: int = 1,
         test_skeleton_path: Optional[str] = None
     ):
-        """
-        Initialize the BuilderHackerService.
-
-        :param project_root_path: Root path of the Forge project.
-        :param olympix_path: Path to the olympix.exe tool.
-        :param hacker_temp: Temperature parameter for the GPT model (creativity).
-        :param test_skeleton: Optional base skeleton for test generation.
-        """
         self.project_root_path = project_root_path
         self.olympix_path = olympix_path
         self.src_path = os.path.join(self.project_root_path, "src")
@@ -35,18 +27,8 @@ class BuilderService:
             test_skeleton_path=test_skeleton_path
         )
 
-        logging.info("BuilderService initialized successfully.")
-
 
     def generate_test(self, filename, error_data=None, test_analysis_data=None):
-        """
-        Generate a test contract for the specified Solidity file.
-
-        :param filename: Name of the Solidity file (e.g., 'Foo.sol').
-        :param error_data: (Optional) Additional error data for regeneration.
-        :param test_analysis_data: (Optional) Additional analysis data.
-        :return: Dictionary containing the test filename and generated test code.
-        """
         try:
             if error_data is None:
                 logging.info(f"Generating test for file: {filename}")
@@ -68,12 +50,6 @@ class BuilderService:
 
 
     def get_test_code(self, filename):
-        """
-        Retrieve the generated test code for a specific Solidity file.
-
-        :param filename: Name of the Solidity file (e.g., 'Foo.sol').
-        :return: Test contract code as a string.
-        """
         try:
             return self.builder_agent.get_test_code(filename)
         except Exception as e:

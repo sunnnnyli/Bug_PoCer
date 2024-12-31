@@ -12,7 +12,7 @@ from prompts.builder.regeneration import regeneration
 from prompts.builder.skeleton_generation import skeleton_generation
 from prompts.builder.skeleton_regeneration import skeleton_regeneration
 from prompts.builder.chained_call import chained_call
-from file_lib import write_file, read_file
+from lib.file_lib import write_file, read_file
 
 
 class BuildOutput(TypedDict):
@@ -56,21 +56,6 @@ class BuilderAgent:
         self.app = self.workflow.compile(checkpointer=memory)
 
     def olympix_static_analysis(self, olympix_path: str, working_dir: str) -> str:
-        """
-        Performs static analysis on Solidity source code using Olympix.
-
-        Args:
-            olympix_path (str): Path to the Olympix executable.
-            working_dir (str): Directory containing the source files to analyze.
-
-        Returns:
-            str: JSON output from the Olympix analysis.
-
-        Raises:
-            FileNotFoundError: If the Olympix executable is not found.
-            RuntimeError: If the Olympix analysis command fails.
-            Exception: For any unexpected errors during analysis.
-        """
         full_olympix_path = os.path.join(olympix_path, "olympix.exe")
 
         cmd = [
@@ -82,9 +67,8 @@ class BuilderAgent:
             "json"
         ]
 
-        logging.info(f"Running olympix analysis command: {' '.join(cmd)}")
-
         try:
+            logging.info(f"Running olympix analysis command: {' '.join(cmd)}")
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -99,16 +83,12 @@ class BuilderAgent:
                     f"Olympix analysis command exited with code {result.returncode}."
                 )
 
-            logging.info("Olympix analysis completed successfully.")
-            logging.debug(f"Olympix analysis output:\n{result.stdout}")
+            logging.info("Olympix analysis completed successfully:\n{result.stdout}")
 
             return result.stdout
 
         except FileNotFoundError as e:
-            error_msg = (
-                f"Could not locate olympix.exe at '{full_olympix_path}'. "
-                "Ensure the path is correct and accessible."
-            )
+            error_msg = (f"Could not locate olympix.exe at '{full_olympix_path}'.")
             logging.error(error_msg)
             raise FileNotFoundError(error_msg) from e
         except Exception as e:
@@ -119,20 +99,6 @@ class BuilderAgent:
                                filename: str,
                                error_data: str = None,
                                test_analysis_data: dict = None) -> dict:
-        """
-        Generates a test contract for a specified Solidity file.
-
-        Args:
-            filename (str): The name of the Solidity file to generate a test for.
-            error_data (str, optional): Additional error data to include in the test generation. Defaults to None.
-
-        Returns:
-            dict: A dictionary containing the test filename and its generated test code.
-
-        Raises:
-            FileNotFoundError: If the specified Solidity file does not exist.
-            Exception: If parsing the AI model's output fails.
-        """
         # Ensure it ends with .sol
         if not filename.endswith(".sol"):
             filename += ".sol"
@@ -198,12 +164,15 @@ class BuilderAgent:
             test_code = output_dict['my_test_code']
             # explanation = output_dict['my_explanation']
         except Exception as e:
-            logging.error(f"BuilderAgent: Could not parse test code from model output. Error: {e}")
+            logging.error(f"Could not parse test code from model output. Error: {e}")
             raise
 
         # Write the new test contract
         write_file(test_code, test_file_path)
-        logging.info(f"Created/modified test file: {test_file_path}")
+        if error_data is None:
+            logging.info(f"Created test file: {test_file_path}")
+        else:
+            logging.info(f"Modified test file: {test_file_path}")
 
         # Update our in-memory dictionary
         self.generated_tests[test_filename] = test_code
@@ -216,39 +185,21 @@ class BuilderAgent:
                       target_file: str,
                       error_data: str = None,
                       test_analysis_data: dict = None) -> dict:
-        """
-        Public method to generate a test for a specified Solidity file.
-
-        Args:
-            target_file (str): The name of the Solidity file to generate a test for.
-            error_data (str, optional): Additional error data to include in the test generation. Defaults to None.
-
-        Returns:
-            dict: A dictionary containing the test filename and its generated test code.
-        """
         if error_data is None:
             logging.info(f"Generating test for file: {target_file}")
         else:
             logging.info(f"Regenerating test for file: {target_file}")
-        return self.generate_test_for_file(target_file, error_data, test_analysis_data)
+
+        result = self.generate_test_for_file(target_file, error_data, test_analysis_data)
+
+        logging.info("Done...")
+
+        return result
 
     def get_analysis_data(self) -> str:
         return self.analysis_data
 
     def get_test_code(self, filename: str) -> str:
-        """
-        Retrieves the generated test code for a specified Solidity file.
-
-        Args:
-            filename (str): The name of the Solidity file whose test code is to be retrieved.
-
-        Returns:
-            str: The generated test contract code.
-
-        Raises:
-            FileNotFoundError: If the test file is not found in memory or on disk.
-            IOError: If reading the test file from disk fails.
-        """
         test_filename = f"{os.path.splitext(filename)[0]}Test.sol"
 
         # Check in-memory dictionary first

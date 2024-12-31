@@ -6,9 +6,10 @@ from langchain_core.messages import HumanMessage
 from typing_extensions import Annotated, TypedDict
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
-from forge_lib import ForgeLib
+from lib.forge_lib import ForgeLib
 from prompts.tester.analyze_test import analyze_test
 from prompts.tester.chained_call import chained_call
+from lib.file_lib import write_file, read_file
 
 
 class TestOutput(TypedDict):
@@ -34,6 +35,7 @@ class TesterAgent:
         self.forge_path = forge_path
         self.src_path = os.path.join(forge_path, "src")
         self.test_path = os.path.join(forge_path, "test")
+        self.exploit_path = os.path.join(forge_path, "exploits")
         self.test_output = None
         self.id = str(datetime.now().strftime('%Y-%m-%d_%H-%M-%S_'))
 
@@ -62,13 +64,8 @@ class TesterAgent:
         memory = MemorySaver()
         self.app = self.workflow.compile(checkpointer=memory)
 
-    def run_test(self, filename: str) -> TestOutput | None:
-        """
-        Executes the generated test contract using Forge and returns a structured TestOutput.
 
-        Args:
-            filename (str): The name of the Solidity file whose test is to be run.
-        """
+    def run_test(self, filename: str) -> TestOutput | None:
         test_filename = f"{os.path.splitext(filename)[0]}Test.sol"
         logging.info(f"Testing exploit code for {test_filename}...")
 
@@ -90,22 +87,30 @@ class TesterAgent:
             )
         else:
             # Use AI to analyze the failure reason
+
             logging.info("Analyzing the forge output...")
-            test_result = self._analyze_forge_output(forge_output.output_str)
+            test_result = self._analyze_forge_output(filename, forge_output.output_str)
             logging.info(f"Analysis output: {test_result}")
             return test_result
 
-    def _analyze_forge_output(self, output_str: str) -> TestOutput:
-        """
-        Uses the AI model to analyze Forge output and determine the reason for test failure.
 
-        Args:
-            output_str (str): The output string from Forge.
+    def _analyze_forge_output(self, filename: str, output_str: str) -> TestOutput:
+        exploit_filename = f"{os.path.splitext(filename)[0]}Exploit.sol"
+        test_filename = f"{os.path.splitext(filename)[0]}Test.sol"
 
-        Returns:
-            TestOutput: A structured result indicating the failure reason and suggestions.
-        """
-        prompt = analyze_test.format(forge_output=output_str)
+        source_file_path = os.path.join(self.src_path, filename)
+        exploit_file_path = os.path.join(self.exploit_path, exploit_filename)
+        test_file_path = os.path.join(self.test_path, test_filename)
+        
+        prompt = analyze_test.format(
+            source_filename=filename,
+            source_contract=read_file(source_file_path),
+            exploit_filename=exploit_filename,
+            exploit_contract=read_file(exploit_file_path),
+            test_filename=test_filename,
+            test_contract=read_file(test_file_path),
+            forge_output=output_str
+        )
         logging.info(f"Prompt fed to tester agent:\n{prompt}")
 
         input_messages = [HumanMessage(prompt)]
@@ -137,6 +142,10 @@ class TesterAgent:
                 suggestions="Manual inspection is required."
             )
         
+
     def get_forge_output(self) -> str:
         return self.test_output
     
+
+    def reset_forge_output(self):
+        self.test_output = None
