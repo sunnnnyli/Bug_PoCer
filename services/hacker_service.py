@@ -1,7 +1,7 @@
 import os
 import logging
 from typing import Optional
-from agents.hacker_agent import HackerAgent
+from agents.hacker.hacker_agent import HackerAgent
 
 
 class HackerService:

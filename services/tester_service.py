@@ -1,7 +1,7 @@
 import os
 import logging
 
-from agents.tester_agent import TesterAgent
+from agents.tester.tester_agent import TesterAgent
 
 
 class TesterService:

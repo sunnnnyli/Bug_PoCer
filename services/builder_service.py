@@ -2,7 +2,7 @@ import os
 import logging
 from typing import Optional
 
-from agents.builder_agent import BuilderAgent
+from agents.builder.builder_agent import BuilderAgent
 
 
 class BuilderService:
@@ -41,11 +41,11 @@ class BuilderService:
             logging.error(f"Error generating test for {filename}: {e}")
             raise e
         
-    def get_analysis_data(self):
+    def get_analysis_data(self, filename):
         try:
-            return self.builder_agent.get_analysis_data()
+            return self.builder_agent.get_analysis_data(filename)
         except Exception as e:
-            logging.error(f"Error retrieving analysis data: {e}")
+            logging.error(f"Error retrieving analysis data for {filename}: {e}")
             raise e
 
 

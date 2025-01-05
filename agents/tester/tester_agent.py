@@ -7,8 +7,8 @@ from typing_extensions import Annotated, TypedDict
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
 from lib.forge_lib import ForgeLib
-from prompts.tester.analyze_test import analyze_test
-from prompts.tester.chained_call import chained_call
+from agents.tester.prompts.analyze_test import analyze_test
+from agents.tester.prompts.chained_call import chained_call
 from lib.file_lib import write_file, read_file
 
 

@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from datetime import datetime
@@ -7,11 +8,11 @@ from langchain_core.messages import HumanMessage
 from typing_extensions import Annotated, TypedDict
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
-from prompts.builder.generation import generation
-from prompts.builder.regeneration import regeneration
-from prompts.builder.skeleton_generation import skeleton_generation
-from prompts.builder.skeleton_regeneration import skeleton_regeneration
-from prompts.builder.chained_call import chained_call
+from agents.builder.prompts.generation import generation
+from agents.builder.prompts.regeneration import regeneration
+from agents.builder.prompts.skeleton_generation import skeleton_generation
+from agents.builder.prompts.skeleton_regeneration import skeleton_regeneration
+from agents.builder.prompts.chained_call import chained_call
 from lib.file_lib import write_file, read_file
 
 
@@ -21,14 +22,33 @@ class BuildOutput(TypedDict):
 
 
 class BuilderAgent:
-    def __init__(self, gpt_model, forge_path, olympix_path, temp, test_skeleton_path):
+    def __init__(self,
+                 gpt_model,
+                 forge_path,
+                 olympix_path,
+                 temp,
+                 test_skeleton_path,
+                 precomputed_analysis_data: dict = None,
+                 precomputed_bug_map: dict = None
+        ):
         self.forge_path = forge_path
         self.src_path = os.path.join(forge_path, "src")
         self.test_path = os.path.join(forge_path, "test")
-        self.analysis_data = self.olympix_static_analysis(olympix_path, self.src_path)
         self.test_skeleton = read_file(test_skeleton_path)
         self.id = str(datetime.now().strftime('%Y-%m-%d_%H-%M-%S_'))
         self.generated_tests = {}
+
+        if precomputed_analysis_data is not None:
+            self.analysis_data = precomputed_analysis_data
+            logging.info("Using precomputed analysis data.")
+        else:
+            self.analysis_data = self.olympix_static_analysis(olympix_path, self.src_path)
+
+        if precomputed_bug_map is not None:
+            self.file_bug_map = precomputed_bug_map
+            logging.info("Using precomputed bug map.")
+        else:
+            self.file_bug_map = self.build_file_bug_map(self.analysis_data)
 
         self.ai_model = ChatOpenAI(
             model=gpt_model,
@@ -56,6 +76,19 @@ class BuilderAgent:
         self.app = self.workflow.compile(checkpointer=memory)
 
     def olympix_static_analysis(self, olympix_path: str, working_dir: str) -> str:
+        def parse_olympix_output(stdout: str) -> dict:
+            start = stdout.find('{')
+            end = stdout.rfind('}')
+
+            if start == -1 or end == -1 or end < start:
+                raise ValueError("Could not find a valid JSON block in Olympix output.")
+
+            json_str = stdout[start:end + 1]
+
+            logging.debug(f"Extracted JSON portion:\n{json_str}")
+
+            return json.loads(json_str)
+        
         full_olympix_path = os.path.join(olympix_path, "olympix.exe")
 
         cmd = [
@@ -83,17 +116,48 @@ class BuilderAgent:
                     f"Olympix analysis command exited with code {result.returncode}."
                 )
 
-            logging.info("Olympix analysis completed successfully:\n{result.stdout}")
+            logging.info(f"Olympix analysis completed successfully:\n{result.stdout}")
 
-            return result.stdout
+            analysis_data = parse_olympix_output(result.stdout)
+
+            return analysis_data
 
         except FileNotFoundError as e:
             error_msg = (f"Could not locate olympix.exe at '{full_olympix_path}'.")
             logging.error(error_msg)
             raise FileNotFoundError(error_msg) from e
+        except json.JSONDecodeError as e:
+            logging.error(f"Could not decode JSON from Olympix output: {result.stdout}")
+            raise e
         except Exception as e:
             logging.error(f"Unexpected error while running olympix.exe: {e}")
             raise
+
+
+    def build_file_bug_map(self, analysis_data: dict) -> dict:
+        """
+        Build a quick-lookup dictionary mapping each .sol filename to a list of its bugs.
+        """
+        file_bug_map = {}
+        files_info = analysis_data.get("files", [])
+
+        for file in files_info:
+            path = file.get("path", "")
+            standardized_path = path.replace("\\", "/")
+
+            # Extract just the final filename
+            filename_only = standardized_path.split("/")[-1]
+
+            file_bug_map[filename_only] = file.get("bugs", [])
+
+        return file_bug_map
+
+
+    def get_bugs_for_file(self, filename: str) -> list:
+        if not filename.endswith(".sol"):
+            filename += ".sol"
+        return self.file_bug_map.get(filename, [])
+    
 
     def generate_test_for_file(self,
                                filename: str,
@@ -112,6 +176,11 @@ class BuilderAgent:
         source_code = read_file(file_path)
         logging.info(f"Content read from {file_path}")
 
+        # Grab only the relevant bugs for this file
+        relevant_bugs = self.get_bugs_for_file(filename)
+        relevant_bugs_str = json.dumps(relevant_bugs, indent=2)
+        logging.info(f"Relevant Olympix bugs for {filename}:\n{relevant_bugs_str}")
+
         # Construct the test file path
         test_filename = f"{os.path.splitext(filename)[0]}Test.sol"
         test_file_path = os.path.join(self.test_path, test_filename)
@@ -121,7 +190,7 @@ class BuilderAgent:
             template = skeleton_regeneration if error_data else skeleton_generation
             format_args = {
                 'source_code': source_code,
-                'analysis_data': self.analysis_data,
+                'analysis_data': relevant_bugs_str,
                 'filename': os.path.splitext(filename)[0],
                 'test_skeleton': self.test_skeleton
             }
@@ -129,7 +198,7 @@ class BuilderAgent:
             template = regeneration if error_data else generation
             format_args = {
                 'source_code': source_code,
-                'analysis_data': self.analysis_data,
+                'analysis_data': relevant_bugs_str,
                 'filename': os.path.splitext(filename)[0]
             }
 
@@ -140,7 +209,6 @@ class BuilderAgent:
 
         # Format the prompt using the selected template and arguments
         prompt = template.format(**format_args)
-
         logging.info(f"Prompt fed to builder agent:\n{prompt}")
 
         input_messages = [HumanMessage(prompt)]
@@ -196,8 +264,11 @@ class BuilderAgent:
 
         return result
 
-    def get_analysis_data(self) -> str:
-        return self.analysis_data
+    def get_analysis_data(self, filename) -> dict:
+        relevant_bugs = self.get_bugs_for_file(filename)
+        relevant_bugs_str = json.dumps(relevant_bugs, indent=2)
+
+        return relevant_bugs_str
 
     def get_test_code(self, filename: str) -> str:
         test_filename = f"{os.path.splitext(filename)[0]}Test.sol"

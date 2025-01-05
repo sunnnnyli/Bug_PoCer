@@ -6,11 +6,11 @@ from langchain_core.messages import HumanMessage
 from typing_extensions import Annotated, TypedDict
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
-from prompts.hacker.first_attempt import first_attempt
-from prompts.hacker.skeleton_first_attempt import skeleton_first_attempt
-from prompts.hacker.reattempt import reattempt
-from prompts.hacker.skeleton_reattempt import skeleton_reattempt
-from prompts.hacker.chained_call import chained_call
+from agents.hacker.prompts.first_attempt import first_attempt
+from agents.hacker.prompts.skeleton_first_attempt import skeleton_first_attempt
+from agents.hacker.prompts.reattempt import reattempt
+from agents.hacker.prompts.skeleton_reattempt import skeleton_reattempt
+from agents.hacker.prompts.chained_call import chained_call
 from lib.file_lib import write_file, read_file
 
 
