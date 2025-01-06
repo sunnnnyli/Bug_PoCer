@@ -119,10 +119,13 @@ def main(args):
             if f.is_file() and f.suffix.lower() == '.sol'
         ]
 
-    success = True
+    files_succeeded = []
+    files_failed = []
+
     for file in target_files:
         test_dict = None
         status = None
+        file_success = False
 
         exploit_filename = f"{os.path.splitext(file)[0]}Exploit.sol"
         test_filename    = f"{os.path.splitext(file)[0]}Test.sol"
@@ -182,21 +185,54 @@ def main(args):
 
             if status == 'success':
                 logging.info(f"{file} successfully exploited in {attempt} attempt(s)!")
-                print(f"`{file}` was exploited in {attempt} attempt(s).")
+                print(f"`{file}` was exploited in {attempt} attempt(s)!")
+                file_success = True
                 status = None
                 break
             else:
                 logging.info(f"Attempt {attempt} for {file} failed.")
                 print(f"Attempt {attempt} for `{file}` failed.")
-                if attempt == settings['num_attempts']:
-                    success = False
+
+        if file_success:
+            files_succeeded.append(file)
+        else:
+            files_failed.append(file)
+            logging.info(f"Exhausted attempts for `{file}`, deleting test and exploit files.")
+            print(f"Exhausted attempts for `{file}`")
+            print("Removing failing test and exploit files...", end="")
+            if os.path.exists(exploit_file_path):
+                os.remove(exploit_file_path)
+                logging.info(f"Deleted exploit file: {exploit_file_path}")
+            if os.path.exists(test_file_path):
+                os.remove(test_file_path)
+                logging.info(f"Deleted test file: {test_file_path}")
+            print("Done.")
 
         # Reset variables for next file
         test_dict = None
         tester_service.reset_forge_output()
 
+    logging.info("Summary of results:")
+    logging.info(f"Succeeded: {files_succeeded}")
+    logging.info(f"Failed: {files_failed}")
+
+    print("=" * 70, "\n", "Summary of Results")
+    print("Succeeded:")
+    if files_succeeded:
+        for f in files_succeeded:
+            print(f"  - {f}")
+    else:
+        print("  None")
+
+    print("Failed:")
+    if files_failed:
+        for f in files_failed:
+            print(f"  - {f}")
+    else:
+        print("  None")
+
     # Move the log file
-    move_log_file(log_path, success)
+    move_log_file(log_path, len(files_failed) == 0)
     
 
 if __name__ == "__main__":

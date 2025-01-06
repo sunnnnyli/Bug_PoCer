@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from datetime import datetime
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
@@ -25,6 +26,7 @@ class HackerAgent:
         self.src_path = os.path.join(forge_path, "src")
         self.exploit_skeleton = read_file(exploit_skeleton_path)
         self.id = str(datetime.now().strftime('%Y-%m-%d_%H-%M-%S_'))
+        self.imported_files_cache = {}
         self.generated_exploits = {}
 
         self.ai_model = ChatOpenAI(
@@ -51,6 +53,52 @@ class HackerAgent:
         memory = MemorySaver()
         self.app = self.workflow.compile(checkpointer=memory)
 
+
+    def find_imported_files(self, file_content: str, current_dir: str) -> dict:
+        """
+        Given the content of a .sol file, find all local imports of the form:
+            import "./MyLibrary.sol";
+            import { Symbol1, Symbol2 } from "./MyOtherLibrary.sol";
+        Then read them from disk (if not already cached).
+        
+        Returns a dict: { "MyLibrary.sol": "full source code", ... } 
+        (possibly including nested imports).
+        """
+        imported_contents = {}
+
+        # Regex to capture both simple and named imports, e.g.:
+        #   import "./Foo.sol";
+        #   import { Bar, Baz } from "./Foo.sol";
+        pattern = r'^\s*import\s+(?:\{[^}]+\}\s+from\s+)?(?:"|\')(.*?\.sol)(?:"|\')\s*;'
+
+        matches = re.findall(pattern, file_content, flags=re.MULTILINE)
+
+        for import_path in matches:
+            norm_path = import_path.replace('"', '').replace("'", "")
+            # Remove any leading "./"
+            norm_path = norm_path.lstrip("./")
+            abs_import_path = os.path.join(current_dir, norm_path)
+            
+            filename_only = os.path.basename(abs_import_path)
+
+            if filename_only not in self.imported_files_cache:
+                # If not cached, attempt to read
+                if os.path.exists(abs_import_path):
+                    file_data = read_file(abs_import_path)
+                    self.imported_files_cache[filename_only] = file_data
+
+                    # Recursively parse further imports
+                    deeper_imports = self.find_imported_files(file_data, os.path.dirname(abs_import_path))
+                    imported_contents.update(deeper_imports)
+                else:
+                    logging.warning(f"Imported file not found on disk: {abs_import_path}")
+                    self.imported_files_cache[filename_only] = f"// Could not find {filename_only}"
+
+            imported_contents[filename_only] = self.imported_files_cache[filename_only]
+
+        return imported_contents
+    
+
     def exploit(self,
                 static_analysis,
                 filename,
@@ -58,6 +106,17 @@ class HackerAgent:
                 forge_output=None,
                 exploit_analysis_data: dict = None) -> dict:
         src_file_path = os.path.join(self.src_path, filename)
+        
+        original_source = read_file(src_file_path)
+        imported_files_dict = self.find_imported_files(original_source, self.src_path)
+        
+        # Optional: build a string that appends all imported .sol source code
+        imported_code_str = ""
+        if imported_files_dict:
+            appended_imports = []
+            for file, code in imported_files_dict.items():
+                appended_imports.append(f"\n// Begin import {file}\n{code}\n// End import {file}\n")
+            imported_code_str = "\n".join(appended_imports)
 
         # Determine the template and formatting arguments based on conditions
         if forge_output is None:
@@ -79,6 +138,11 @@ class HackerAgent:
             }
             if self.exploit_skeleton is not None:
                 format_args["exploit_skeleton"] = self.exploit_skeleton
+
+        if imported_code_str.strip():
+            format_args["import_data"] = imported_code_str
+        else:
+            format_args["import_data"] = "No import data"
 
         # Generate the prompt using the selected template and arguments
         prompt = template.format(**format_args)

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from datetime import datetime
 import subprocess
 from langchain_openai import ChatOpenAI
@@ -36,7 +37,9 @@ class BuilderAgent:
         self.test_path = os.path.join(forge_path, "test")
         self.test_skeleton = read_file(test_skeleton_path)
         self.id = str(datetime.now().strftime('%Y-%m-%d_%H-%M-%S_'))
+        self.imported_files_cache = {}
         self.generated_tests = {}
+        
 
         if precomputed_analysis_data is not None:
             self.analysis_data = precomputed_analysis_data
@@ -159,6 +162,44 @@ class BuilderAgent:
         return self.file_bug_map.get(filename, [])
     
 
+    def find_imported_files(self, file_content: str, current_dir: str) -> dict:
+        imported_contents = {}
+
+        pattern = r'^\s*import\s+(?:\{[^}]+\}\s+from\s+)?(?:"|\')(.*?\.sol)(?:"|\')\s*;'
+        matches = re.findall(pattern, file_content, flags=re.MULTILINE)
+
+        for import_path in matches:
+            # Attempt to find the absolute path
+            # Handle '.' or './'
+            norm_path = import_path.replace('"', '').replace("'", "")
+            norm_path = norm_path.replace("./", "")
+            
+            # We expect these imported files to be relative to `current_dir`
+            abs_import_path = os.path.join(current_dir, norm_path)
+            
+            # Standardize the filename only for dictionary key
+            # E.g. MyLib.sol
+            filename_only = os.path.basename(abs_import_path)
+
+            if filename_only not in self.imported_files_cache:
+                # If we haven't yet cached it, read the file
+                if os.path.exists(abs_import_path):
+                    file_data = read_file(abs_import_path)
+                    self.imported_files_cache[filename_only] = file_data
+
+                    # Recursively parse further imports from that file
+                    deeper_imports = self.find_imported_files(file_data, os.path.dirname(abs_import_path))
+                    imported_contents.update(deeper_imports)
+                else:
+                    logging.warning(f"Imported file not found on disk: {abs_import_path}")
+                    self.imported_files_cache[filename_only] = f"// Could not find {filename_only}"
+            
+            # Once it's in the cache, add it to the local dictionary
+            imported_contents[filename_only] = self.imported_files_cache[filename_only]
+
+        return imported_contents
+    
+
     def generate_test_for_file(self,
                                filename: str,
                                error_data: str = None,
@@ -180,6 +221,17 @@ class BuilderAgent:
         relevant_bugs = self.get_bugs_for_file(filename)
         relevant_bugs_str = json.dumps(relevant_bugs, indent=2)
         logging.info(f"Relevant Olympix bugs for {filename}:\n{relevant_bugs_str}")
+
+        imported_files_dict = self.find_imported_files(source_code, self.src_path)
+        
+        # Construct an optional string to include imported code in the prompt
+        # If we have any imports found, we attach them
+        imported_code_str = ""
+        if imported_files_dict:
+            appended_imports = []
+            for file, code in imported_files_dict.items():
+                appended_imports.append(f"\n// Begin import {file}\n{code}\n// End import {file}\n")
+            imported_code_str = "\n".join(appended_imports)
 
         # Construct the test file path
         test_filename = f"{os.path.splitext(filename)[0]}Test.sol"
@@ -206,6 +258,11 @@ class BuilderAgent:
         if error_data is not None:
             format_args['error_data'] = error_data
             format_args['test_analysis'] = test_analysis_data
+
+        if imported_code_str.strip():
+            format_args['import_data'] = imported_code_str
+        else:
+            format_args['import_data'] = "No import data"
 
         # Format the prompt using the selected template and arguments
         prompt = template.format(**format_args)

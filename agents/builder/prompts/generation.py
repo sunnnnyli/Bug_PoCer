@@ -1,6 +1,9 @@
 generation = '''You are an expert Solidity tester and security researcher. I have a vulnerable Solidity contract in my `src` folder:
 ```{source_code}```
 
+Here are all the relevant local import files:
+```{import_data}```
+
 Here is the static analysis report from olympix:
 ```{analysis_data}```
 
@@ -10,6 +13,7 @@ I want a test that sets up my exploit contract and calls `hack()` and confirms m
 Specifically, the test should:
 1. Fail if the exploit is **not** successful.
 2. Pass only if the exploit actually exploits the vulnerable contract.
+**3. The test must NOT call any boolean function (e.g., `isHacked`, `isExploited`) from the exploit contract to check success. Instead, it must verify the exploit by making direct assertions on the relevant contract state (e.g., checking balances, ownership changes, or any other on-chain effect that proves the vulnerability).**
 
 Return **only** a valid JSON object in plain text, with this format:
 {{

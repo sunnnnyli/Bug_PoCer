@@ -3,6 +3,9 @@ skeleton_first_attempt = '''You are an expert smart contract auditor specialized
 We have the following contract to exploit:
 ```{source_code}```
 
+Here are all the relevant local import files:
+```{import_data}```
+
 Additionally, here is a static-analysis report from olympix. Use these findings to guide your exploit:
 ```{analysis_data}```
 

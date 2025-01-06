@@ -4,3 +4,4 @@ openzeppelin/=lib/openzeppelin-contracts/contracts/
 forge-std/=lib/forge-std/src
 old-forge/=lib/old-forge/src
 modules=src/modules
+@openzeppelin/=lib/openzeppelin-contracts/
