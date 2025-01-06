@@ -1,118 +1,123 @@
 # Bug Pocer
 
-Bug Pocer is a Python-based framework for analyzing, testing, and exploiting Solidity smart contracts. This tool leverages advanced AI-driven pipelines (powered by GPT models) and the Olympix static analysis tool to identify vulnerabilities and validate their exploitability.
+Bug Pocer is a Python-based framework for analyzing, testing, and exploiting Solidity smart contracts. This tool leverages AI-driven pipelines and the Olympix static analysis tool to identify vulnerabilities and validate their exploitability.
 
 ## Overview
 
-The tool operates in three main stages:
+Bug Pocer operates in three main stages:
 
-1. **Builder Stage**:
-   - Analyzes the Solidity source code.
-   - Generates test cases to validate the contract's behavior.
-
-2. **Hacker Stage**:
-   - Uses the test cases and static analysis data to create exploit code.
-
-3. **Tester Stage**:
-   - Runs the generated exploits against the contract to validate their effectiveness.
+1. **Builder Stage**: Analyzes Solidity source code and generates test cases.
+2. **Hacker Stage**: Uses test cases and analysis data to create exploit code.
+3. **Tester Stage**: Validates exploits against the contract.
 
 ## Features
 
-- AI-driven analysis using OpenAI's GPT models.
-- Automated test case generation and refinement.
-- Exploit creation tailored to the contract's vulnerabilities.
-- Test execution with feedback and suggestions for improvement.
+- AI-driven test case generation and refinement.
+- Exploit creation and validation tailored to vulnerabilities.
+- Iterative retries for refining results.
+- Import parsing for comprehensive analysis.
+- Modular architecture for streamlined operations.
+
+## Services and Agents
+
+### Services
+
+The services act as middleware, streamlining communication between the main script (`bug_pocer.py`) and agents.
+
+- **Builder Service**: Manages test generation via the `BuilderAgent` and handles file operations.
+- **Hacker Service**: Facilitates exploit creation through the `HackerAgent`.
+- **Tester Service**: Validates exploits using the `TesterAgent` and manages iterative retries.
+
+### Agents
+
+The agents implement core logic:
+
+- **Builder Agent**: Generates Solidity test cases using AI.
+- **Hacker Agent**: Creates and refines exploit code for vulnerabilities.
+- **Tester Agent**: Executes and validates exploits, providing feedback for retries.
 
 ## Installation
 
 ### Prerequisites
 
 - Python 3.8+
-- `pip` package manager
-- Required Python libraries:
-  - `langchain_openai`, `langgraph`, `typing_extensions`
-  - Additional dependencies listed in `requirements.txt`.
+- Required Python libraries listed in `requirements.txt`.
 - Olympix static analysis tool (`olympix.exe`).
 
 ### Setup
 
-1. Clone this repository:
+1. Clone the repository:
    ```bash
    git clone <repository-url>
    cd <repository-folder>
    ```
-
 2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-
-3. Ensure Olympix is available in your system and note its path.
-
+3. Ensure Olympix is available in your system.
 4. Set up the OpenAI API Key:
    ```bash
    export OPENAI_API_KEY=your_api_key
    ```
 
+## Configuration
+
+Default parameters are stored in `config.json`:
+
+```json
+{
+    "builder_temp": 1,
+    "hacker_temp": 1,
+    "tester_temp": 1,
+    "filename": null,
+    "num_attempts": 5,
+    "olympix_path": "/path/to/olympix",
+    "forge_bug_pocs_dir": "/path/to/forge_bug_pocs"
+}
+```
+
 ## Usage
 
-Run the main script `bug_pocer.py` to analyze Solidity contracts and identify vulnerabilities.
-
-### Command-Line Arguments
+Run the main script to analyze Solidity contracts:
 
 ```bash
-python bug_pocer.py -f <filename.sol> -bt <builder_temp> -ht <hacker_temp> -tt <tester_temp> -n <num_attempts>
+python bug_pocer.py -f <filename.sol> -bt <builder_temp> -ht <hacker_temp> -tt <tester_temp> -n <num_attempts> -c <config.json>
 ```
 
-- `-f, --filename`: Name of the Solidity file to analyze. If not provided, all files in the source directory are analyzed.
-- `-bt, --builder_temp`: Temperature for the builder AI model (default: 1).
-- `-ht, --hacker_temp`: Temperature for the hacker AI model (default: 1).
-- `-tt, --tester_temp`: Temperature for the tester AI model (default: 1).
-- `-n, --num_attempts`: Number of attempts to refine tests or exploits before stopping (default: 7).
+Examples:
 
-### Example
-
-To analyze `MyContract.sol` with custom AI temperatures:
-
-```bash
-python bug_pocer.py -f MyContract.sol -bt 2 -ht 3 -tt 1 -n 10
-```
+- **Default config:**
+  ```bash
+  python bug_pocer.py
+  ```
+- **Custom config file:**
+  ```bash
+  python bug_pocer.py -c custom_config.json
+  ```
+- **Override parameters:**
+  ```bash
+  python bug_pocer.py -c config.json -f MyContract.sol
+  ```
 
 ## Project Structure
 
 ```
 ├── bug_pocer.py               # Main script coordinating all services
-├── builder_agent.py           # Logic for building test cases
-├── hacker_agent.py            # Logic for creating exploits
-├── tester_agent.py            # Logic for validating exploits
-├── builder_service.py         # Service wrapper for builder logic
-├── hacker_service.py          # Service wrapper for hacker logic
-├── tester_service.py          # Service wrapper for tester logic
+├── services/                  # Middleware for agent interaction
+│   ├── builder_service.py     # Handles test generation
+│   ├── hacker_service.py      # Manages exploit creation
+│   └── tester_service.py      # Executes and validates exploits
+├── agents/                    # Core logic implementation
+│   ├── builder/               # Test generation
+│   ├── hacker/                # Exploit creation
+│   └── tester/                # Exploit validation
 ├── lib/                       # Utility libraries
-│   ├── file_lib.py            # File operations utilities
-│   ├── log_lib.py             # Logging utilities
-│   └── forge_lib.py           # Forge testing utilities
-├── forge_bug_pocs/            # Directory for generated files (tests, exploits)
+├── forge_bug_pocs/            # Generated files
 │   ├── src/                   # Solidity source files
-│   ├── test/                  # Generated test files
-│   ├── exploits/              # Generated exploit files
-└── prompts/                   # AI prompt templates
+│   ├── test/                  # Test files
+│   └── exploits/              # Exploit files
+└── logs/                      # Log files
+    ├── successes/             # Successful operations
+    └── failures/              # Failed operations
 ```
-
-## Logs
-
-Logs are automatically generated to capture the workflow. Depending on the success or failure of the process, logs are moved to appropriate folders.
-
-## How It Works
-
-1. **Builder Service**:
-   - Reads Solidity source code.
-   - Generates test cases using a predefined skeleton and static analysis data.
-
-2. **Hacker Service**:
-   - Uses the static analysis data and generated tests to identify vulnerabilities.
-   - Creates exploit code tailored to the identified vulnerabilities.
-
-3. **Tester Service**:
-   - Runs the exploits using Forge and evaluates their success.
-   - Provides feedback for further refinement if the exploit fails.
