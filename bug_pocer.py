@@ -199,7 +199,7 @@ def main(args):
             files_failed.append(file)
             logging.info(f"Exhausted attempts for `{file}`, deleting test and exploit files.")
             print(f"Exhausted attempts for `{file}`")
-            print("Removing failing test and exploit files...", end="")
+            print("Removing failing test and exploit files... ", end="")
             if os.path.exists(exploit_file_path):
                 os.remove(exploit_file_path)
                 logging.info(f"Deleted exploit file: {exploit_file_path}")
@@ -216,7 +216,7 @@ def main(args):
     logging.info(f"Succeeded: {files_succeeded}")
     logging.info(f"Failed: {files_failed}")
 
-    print("=" * 70, "\n", "Summary of Results")
+    print("=" * 70, "\n", "Summary of Results", sep="")
     print("Succeeded:")
     if files_succeeded:
         for f in files_succeeded:
