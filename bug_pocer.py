@@ -13,10 +13,6 @@ from lib.log_lib import setup_logging, move_log_file, log_file_differences
 
 
 def load_config_and_merge(args):
-    """
-    Reads the config file (if supplied) and merges it with command-line arguments.
-    Returns a dictionary of final settings.
-    """
     config = {}
     if args.config is not None:
         try:
